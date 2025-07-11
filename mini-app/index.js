@@ -62,10 +62,29 @@ app.post('/books', upload.single('image'), async (req, res) => {
   }
 });
 
+app.put('/books/:id', upload.single('image'), async (req, res) => {
+  try {
+    const { title, author, year, category } = req.body;
+    let updateData = { title, author, year, category };
+    if (req.file) {
+      updateData.imageUrl = `http://192.168.193.252:3000/uploads/${req.file.filename}`;
+    }
+    const updatedBook = await Book.findByIdAndUpdate(
+      req.params.id,
+      { $set: updateData },
+      { new: true }
+    );
+    if (!updatedBook) return res.status(404).json({ message: 'Book not found' });
+    res.json(updatedBook);
+  } catch (err) {
+    res.status(400).json({ error: 'Failed to update book', details: err });
+  }
+});
+
 app.delete('/books/:id', async (req, res) => {
   const deletedBook = await Book.findByIdAndDelete(req.params.id);
   if (!deletedBook) return res.status(404).json({ message: 'Book not found' });
   res.json({ message: 'Book deleted', book: deletedBook });
 });
 
-app.listen(PORT, () => console.log(`Server running at http://192.168.193.252:${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`Server running at http://192.168.193.252:${PORT}`));
