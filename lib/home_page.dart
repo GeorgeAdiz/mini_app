@@ -18,6 +18,8 @@ class _HomePageState extends State<HomePage> {
   List books = [];
   List filteredBooks = [];
   String searchQuery = '';
+  String selectedCategory = 'All Categories';
+  List<String> categories = ['All Categories'];
   // Removed serverIP and showIPInput
 
   @override
@@ -32,7 +34,7 @@ class _HomePageState extends State<HomePage> {
   Future<void> testNetworkConnection() async {
     try {
       print('Testing network connection...');
-      var url = Uri.parse('http://192.168.193.252:3000/books');
+      var url = Uri.parse('http://192.168.194.4:3000/books');
       var response = await http.get(url).timeout(Duration(seconds: 5));
       print('Network test successful: ${response.statusCode}');
     } catch (e) {
@@ -45,7 +47,7 @@ class _HomePageState extends State<HomePage> {
       print('Fetching books from API...');
       // Use only the hardcoded list of possible URLs
       List<String> possibleUrls = [
-        'http://192.168.193.252:3000/books', // Original IP
+        'http://192.168.194.4:3000/books', // Your current IP
         'http://10.0.2.2:3000/books', // Android emulator localhost
         'http://localhost:3000/books',
         'http://192.168.1.100:3000/books', // Common router IP
@@ -96,6 +98,23 @@ class _HomePageState extends State<HomePage> {
         
         setState(() {
           books = decodedBooks;
+          // Extract unique categories from books (handle both single and multiple categories)
+          Set<String> uniqueCategories = {'All Categories'};
+          for (var book in decodedBooks) {
+            if (book['category'] != null && book['category'].toString().isNotEmpty) {
+              // Handle comma-separated categories
+              String categoryStr = book['category'].toString();
+              if (categoryStr.contains(',')) {
+                // Multiple categories separated by commas
+                List<String> bookCategories = categoryStr.split(',').map((c) => c.trim()).toList();
+                uniqueCategories.addAll(bookCategories);
+              } else {
+                // Single category
+                uniqueCategories.add(categoryStr);
+              }
+            }
+          }
+          categories = uniqueCategories.toList()..sort();
           applyFilter();
         });
         print('Books loaded successfully: ${books.length}');
@@ -117,10 +136,26 @@ class _HomePageState extends State<HomePage> {
 
   void applyFilter() {
     setState(() {
-      if (searchQuery.isEmpty) {
-        filteredBooks = List.from(books);
-      } else {
-        filteredBooks = books.where((book) {
+      List filtered = List.from(books);
+      
+      // Apply category filter
+      if (selectedCategory != 'All Categories') {
+        filtered = filtered.where((book) {
+          final categoryStr = (book['category'] ?? '').toString();
+          if (categoryStr.contains(',')) {
+            // Multiple categories - check if any match
+            List<String> bookCategories = categoryStr.split(',').map((c) => c.trim()).toList();
+            return bookCategories.contains(selectedCategory);
+          } else {
+            // Single category
+            return categoryStr == selectedCategory;
+          }
+        }).toList();
+      }
+      
+      // Apply search filter
+      if (searchQuery.isNotEmpty) {
+        filtered = filtered.where((book) {
           final title = (book['title'] ?? '').toString().toLowerCase();
           final author = (book['author'] ?? '').toString().toLowerCase();
           final category = (book['category'] ?? '').toString().toLowerCase();
@@ -129,6 +164,8 @@ class _HomePageState extends State<HomePage> {
               category.contains(searchQuery);
         }).toList();
       }
+      
+      filteredBooks = filtered;
     });
   }
 
@@ -136,7 +173,7 @@ class _HomePageState extends State<HomePage> {
     try {
       // Try multiple possible IP addresses
       List<String> possibleUrls = [
-        'http://192.168.193.252:3000/books/$id',
+        'http://192.168.194.4:3000/books/$id',
         'http://10.0.2.2:3000/books/$id', // Android emulator localhost
         'http://localhost:3000/books/$id',
       ];
@@ -190,16 +227,17 @@ class _HomePageState extends State<HomePage> {
             child: book['imageUrl'] != null && book['imageUrl'].toString().isNotEmpty
                 ? Image.network(
                     book['imageUrl'],
-                    width: 60,
-                    height: 90,
+                    width: 70,
+                    height: 120,
                     fit: BoxFit.cover,
                     errorBuilder: (context, error, stackTrace) =>
-                        Container(width: 60, height: 90, color: kTeal.withOpacity(0.1), child: Icon(Icons.broken_image, color: kTeal)),
+                        Container(width: 70, height: 120, color: kTeal.withOpacity(0.1), child: Icon(Icons.broken_image, color: kTeal)),
                   )
                 : Container(
-                    width: 60,
-                    height: 90,
+                    width: 70,
+                    height: 120,
                     color: kTeal.withOpacity(0.1),
+                    child: Icon(Icons.book, color: kTeal, size: 30),
                   ),
           ),
           SizedBox(width: 16),
@@ -237,17 +275,31 @@ class _HomePageState extends State<HomePage> {
                           visualDensity: VisualDensity.compact,
                         ),
                       ),
+                  ],
+                ),
+                SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
                     if (book['category'] != null && book['category'].toString().isNotEmpty)
-                      Chip(
-                        label: Text(
-                          book['category'],
-                          style: TextStyle(color: kTeal, fontWeight: FontWeight.bold, fontSize: 13),
-                        ),
-                        backgroundColor: kCard,
-                        shape: StadiumBorder(side: BorderSide(color: kTeal, width: 1.5)),
-                        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-                        visualDensity: VisualDensity.compact,
-                      ),
+                      ...(() {
+                        String categoryStr = book['category'].toString();
+                        List<String> categories = categoryStr.contains(',') 
+                          ? categoryStr.split(',').map((c) => c.trim()).toList()
+                          : [categoryStr];
+                        
+                        return categories.map((category) => Chip(
+                          label: Text(
+                            category,
+                            style: TextStyle(color: kTeal, fontWeight: FontWeight.bold, fontSize: 12),
+                          ),
+                          backgroundColor: kCard,
+                          shape: StadiumBorder(side: BorderSide(color: kTeal, width: 1.5)),
+                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                          visualDensity: VisualDensity.compact,
+                        )).toList();
+                      })(),
                   ],
                 ),
                 SizedBox(height: 8),
@@ -343,8 +395,9 @@ class _HomePageState extends State<HomePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Search Bar
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Material(
                   elevation: 2,
                   borderRadius: BorderRadius.circular(16),
@@ -367,6 +420,67 @@ class _HomePageState extends State<HomePage> {
                       searchQuery = value.toLowerCase();
                       applyFilter();
                     },
+                  ),
+                ),
+              ),
+              // Category Filter Dropdown
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Material(
+                  elevation: 2,
+                  borderRadius: BorderRadius.circular(16),
+                  color: kCard,
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(16),
+                      color: kCard,
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: selectedCategory,
+                        isExpanded: true,
+                        dropdownColor: kCard,
+                        style: TextStyle(
+                          color: kLight,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 16,
+                        ),
+                        icon: Icon(Icons.filter_list, color: kTeal),
+                        items: categories.map((String category) {
+                          return DropdownMenuItem<String>(
+                            value: category,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  category == 'All Categories' 
+                                    ? Icons.library_books 
+                                    : Icons.book,
+                                  color: kTeal,
+                                  size: 20,
+                                ),
+                                SizedBox(width: 12),
+                                Text(
+                                  category,
+                                  style: TextStyle(
+                                    color: kLight,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                        onChanged: (String? newValue) {
+                          if (newValue != null) {
+                            setState(() {
+                              selectedCategory = newValue;
+                            });
+                            applyFilter();
+                          }
+                        },
+                      ),
+                    ),
                   ),
                 ),
               ),

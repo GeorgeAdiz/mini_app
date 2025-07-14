@@ -52,7 +52,7 @@ app.get('/books', async (req, res) => {
 app.post('/books', upload.single('image'), async (req, res) => {
   try {
     const { title, author, year, category } = req.body;
-    const imageUrl = req.file ? `http://192.168.193.252:3000/uploads/${req.file.filename}` : '';
+    const imageUrl = req.file ? `http://192.168.194.4:3000/uploads/${req.file.filename}` : '';
 
     const newBook = new Book({ title, author, year, category, imageUrl });
     await newBook.save();
@@ -67,7 +67,7 @@ app.put('/books/:id', upload.single('image'), async (req, res) => {
     const { title, author, year, category } = req.body;
     let updateData = { title, author, year, category };
     if (req.file) {
-      updateData.imageUrl = `http://192.168.193.252:3000/uploads/${req.file.filename}`;
+      updateData.imageUrl = `http://192.168.194.4:3000/uploads/${req.file.filename}`;
     }
     const updatedBook = await Book.findByIdAndUpdate(
       req.params.id,
@@ -87,4 +87,4 @@ app.delete('/books/:id', async (req, res) => {
   res.json({ message: 'Book deleted', book: deletedBook });
 });
 
-app.listen(PORT, '0.0.0.0', () => console.log(`Server running at http://192.168.193.252:${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`Server running at http://192.168.194.4:${PORT}`));

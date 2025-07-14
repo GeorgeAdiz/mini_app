@@ -25,12 +25,13 @@ class _AddBookPageState extends State<AddBookPage> {
   File? _imageFile;
   final ImagePicker _picker = ImagePicker();
 
-  String selectedCategory = 'Romance';
+  Set<String> selectedCategories = {};
   final List<String> categories = [
     'Romance',
     'Horror',
     'Fantasy',
     'Mystery',
+    'Comedy',
     'Science Fiction',
     'Non-fiction'
   ];
@@ -42,7 +43,14 @@ class _AddBookPageState extends State<AddBookPage> {
       titleController.text = widget.book!['title'] ?? '';
       authorController.text = widget.book!['author'] ?? '';
       yearController.text = widget.book!['year']?.toString() ?? '';
-      selectedCategory = widget.book!['category'] ?? selectedCategory;
+      // Handle both single category (old format) and multiple categories (new format)
+      if (widget.book!['category'] != null) {
+        if (widget.book!['category'] is List) {
+          selectedCategories = Set<String>.from(widget.book!['category']);
+        } else {
+          selectedCategories = {widget.book!['category']};
+        }
+      }
     }
   }
 
@@ -80,7 +88,7 @@ class _AddBookPageState extends State<AddBookPage> {
 
     // Try multiple possible IP addresses
     List<String> possibleUrls = [
-      'http://192.168.193.252:3000/books',
+      'http://192.168.194.4:3000/books',
       'http://10.0.2.2:3000/books', // Android emulator localhost
       'http://localhost:3000/books',
     ];
@@ -118,7 +126,7 @@ class _AddBookPageState extends State<AddBookPage> {
     request.fields['title'] = title;
     request.fields['author'] = author;
     request.fields['year'] = year;
-    request.fields['category'] = selectedCategory;
+    request.fields['category'] = selectedCategories.join(',');
 
     if (_imageFile != null) {
       request.files.add(
@@ -174,7 +182,7 @@ class _AddBookPageState extends State<AddBookPage> {
       return;
     }
     List<String> possibleUrls = [
-      'http://192.168.193.252:3000/books/${widget.book!['_id']}',
+      'http://192.168.194.4:3000/books/${widget.book!['_id']}',
       'http://10.0.2.2:3000/books/${widget.book!['_id']}',
       'http://localhost:3000/books/${widget.book!['_id']}',
     ];
@@ -188,7 +196,7 @@ class _AddBookPageState extends State<AddBookPage> {
         testRequest.fields['title'] = title;
         testRequest.fields['author'] = author;
         testRequest.fields['year'] = year;
-        testRequest.fields['category'] = selectedCategory;
+        testRequest.fields['category'] = selectedCategories.join(',');
         if (_imageFile != null) {
           testRequest.files.add(
             await http.MultipartFile.fromPath('image', _imageFile!.path),
@@ -279,17 +287,95 @@ class _AddBookPageState extends State<AddBookPage> {
                       keyboardType: TextInputType.number,
                     ),
                     SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      value: selectedCategory,
-                      items: categories
-                          .map((c) => DropdownMenuItem(value: c, child: Text(c, style: TextStyle(color: kLight, fontWeight: FontWeight.bold))))
-                          .toList(),
-                      onChanged: (val) {
-                        if (val != null) setState(() => selectedCategory = val);
-                      },
-                      decoration: InputDecoration(labelText: "Category", labelStyle: TextStyle(color: kTeal, fontWeight: FontWeight.bold), border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)), filled: true, fillColor: kCard),
-                      dropdownColor: kTeal,
+                    Text("Categories", style: TextStyle(fontWeight: FontWeight.w600, color: kLight, fontSize: 16)),
+                    SizedBox(height: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: kTeal, width: 1.5),
+                        borderRadius: BorderRadius.circular(12),
+                        color: kCard,
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: selectedCategories.isEmpty ? null : selectedCategories.first,
+                          isExpanded: true,
+                          dropdownColor: kCard,
+                          style: TextStyle(
+                            color: kLight,
+                            fontWeight: FontWeight.w500,
+                            fontSize: 16,
+                          ),
+                          icon: Icon(Icons.arrow_drop_down, color: kTeal),
+                          hint: Text(
+                            selectedCategories.isEmpty 
+                              ? "Select categories" 
+                              : "${selectedCategories.length} selected",
+                            style: TextStyle(color: kLight.withOpacity(0.7)),
+                          ),
+                          items: [
+                            ...categories.map((String category) {
+                              return DropdownMenuItem<String>(
+                                value: category,
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      selectedCategories.contains(category) 
+                                        ? Icons.check_box 
+                                        : Icons.check_box_outline_blank,
+                                      color: kTeal,
+                                      size: 20,
+                                    ),
+                                    SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        category,
+                                        style: TextStyle(
+                                          color: kLight,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          ],
+                          onChanged: (String? newValue) {
+                            if (newValue != null) {
+                              setState(() {
+                                if (selectedCategories.contains(newValue)) {
+                                  selectedCategories.remove(newValue);
+                                } else {
+                                  selectedCategories.add(newValue);
+                                }
+                              });
+                            }
+                          },
+                        ),
+                      ),
                     ),
+                    if (selectedCategories.isNotEmpty) ...[
+                      SizedBox(height: 8),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: selectedCategories.map((category) => Chip(
+                          label: Text(
+                            category,
+                            style: TextStyle(color: kBg, fontWeight: FontWeight.bold, fontSize: 12),
+                          ),
+                          backgroundColor: kTeal,
+                          shape: StadiumBorder(),
+                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 0),
+                          deleteIcon: Icon(Icons.close, color: kBg, size: 16),
+                          onDeleted: () {
+                            setState(() {
+                              selectedCategories.remove(category);
+                            });
+                          },
+                        )).toList(),
+                      ),
+                    ],
                     SizedBox(height: 24),
                     Text("Book Cover", style: TextStyle(fontWeight: FontWeight.w600, color: kLight, fontSize: 16)),
                     SizedBox(height: 10),
