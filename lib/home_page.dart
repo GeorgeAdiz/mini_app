@@ -18,40 +18,34 @@ class _HomePageState extends State<HomePage> {
   List books = [];
   List filteredBooks = [];
   String searchQuery = '';
-  // Removed serverIP and showIPInput
 
   @override
   void initState() {
     super.initState();
-    // Test network connectivity first
     testNetworkConnection();
     fetchBooks();
   }
 
-  // Test network connection
   Future<void> testNetworkConnection() async {
     try {
-      print('Testing network connection...');
-      var url = Uri.parse('http://192.168.193.252:3000/books');
+      var url = Uri.parse('http://192.168.194.4:3000/books');
       var response = await http.get(url).timeout(Duration(seconds: 5));
-      print('Network test successful: ${response.statusCode}');
     } catch (e) {
-      print('Network test failed: $e');
+      // Network test failed silently
     }
   }
 
   fetchBooks() async {
     try {
-      print('Fetching books from API...');
-      // Use only the hardcoded list of possible URLs
       List<String> possibleUrls = [
-        'http://192.168.193.252:3000/books', // Original IP
-        'http://10.0.2.2:3000/books', // Android emulator localhost
+        'http://192.168.194.4:3000/books',
+        'http://192.168.193.252:3000/books',
+        'http://10.0.2.2:3000/books',
         'http://localhost:3000/books',
-        'http://192.168.1.100:3000/books', // Common router IP
-        'http://192.168.0.100:3000/books', // Another common router IP
-        'http://172.20.10.1:3000/books', // iPhone hotspot
-        'http://192.168.43.1:3000/books', // Android hotspot
+        'http://192.168.1.100:3000/books',
+        'http://192.168.0.100:3000/books',
+        'http://172.20.10.1:3000/books',
+        'http://192.168.43.1:3000/books',
       ];
       
       http.Response? response;
@@ -59,23 +53,19 @@ class _HomePageState extends State<HomePage> {
       
       for (String urlString in possibleUrls) {
         try {
-          print('Trying URL: $urlString');
           var url = Uri.parse(urlString);
           response = await http.get(url).timeout(
             Duration(seconds: 5),
             onTimeout: () {
-              print('Request timed out for $urlString');
               throw TimeoutException('Request timed out', Duration(seconds: 5));
             },
           );
           
           if (response.statusCode == 200) {
             workingUrl = urlString;
-            print('Successfully connected to: $workingUrl');
             break;
           }
         } catch (e) {
-          print('Failed to connect to $urlString: $e');
           continue;
         }
       }
@@ -84,31 +74,18 @@ class _HomePageState extends State<HomePage> {
         throw Exception('Could not connect to any server');
       }
       
-      print('Response status: ${response.statusCode}');
-      print('Response headers: ${response.headers}');
-      print('Response body length: ${response.body.length}');
-      print('Response body preview: ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}');
-      
       if (response.statusCode == 200) {
         var decodedBooks = json.decode(response.body);
-        print('Decoded books count: ${decodedBooks.length}');
-        print('First book: ${decodedBooks.isNotEmpty ? decodedBooks.first : 'No books'}');
-        
         setState(() {
           books = decodedBooks;
           applyFilter();
         });
-        print('Books loaded successfully: ${books.length}');
       } else {
-        print('Failed to load books: ${response.statusCode}');
-        print('Error response: ${response.body}');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to load books: ${response.statusCode}')),
         );
       }
     } catch (e) {
-      print('Error fetching books: $e');
-      print('Error type: ${e.runtimeType}');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
@@ -134,10 +111,10 @@ class _HomePageState extends State<HomePage> {
 
   deleteBook(String id) async {
     try {
-      // Try multiple possible IP addresses
       List<String> possibleUrls = [
+        'http://192.168.194.4:3000/books/$id',
         'http://192.168.193.252:3000/books/$id',
-        'http://10.0.2.2:3000/books/$id', // Android emulator localhost
+        'http://10.0.2.2:3000/books/$id',
         'http://localhost:3000/books/$id',
       ];
       
@@ -146,17 +123,14 @@ class _HomePageState extends State<HomePage> {
       
       for (String urlString in possibleUrls) {
         try {
-          print('Trying to delete from: $urlString');
           var url = Uri.parse(urlString);
           response = await http.delete(url).timeout(Duration(seconds: 5));
           
           if (response.statusCode == 200) {
             workingUrl = urlString;
-            print('Successfully deleted from: $workingUrl');
             break;
           }
         } catch (e) {
-          print('Failed to delete from $urlString: $e');
           continue;
         }
       }
@@ -172,7 +146,6 @@ class _HomePageState extends State<HomePage> {
         );
       }
     } catch (e) {
-      print('Error deleting book: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
@@ -208,65 +181,52 @@ class _HomePageState extends State<HomePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  book['title'] ?? '',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: kLight),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  book['title'] ?? 'Unknown Title',
+                  style: TextStyle(
+                    color: kLight,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
-                SizedBox(height: 8),
+                SizedBox(height: 4),
                 Text(
-                  book['author'] ?? '',
-                  style: TextStyle(fontSize: 16, color: kLight, fontWeight: FontWeight.w600, letterSpacing: 0.2),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  'By ${book['author'] ?? 'Unknown Author'}',
+                  style: TextStyle(
+                    color: kLight.withOpacity(0.8),
+                    fontSize: 14,
+                  ),
                 ),
-                SizedBox(height: 10),
+                SizedBox(height: 4),
                 Row(
                   children: [
-                    if (book['year'] != null && book['year'].toString().isNotEmpty)
-                      Container(
-                        margin: EdgeInsets.only(right: 8),
-                        child: Chip(
-                          label: Text(
-                            book['year'].toString(),
-                            style: TextStyle(color: kBg, fontWeight: FontWeight.bold, fontSize: 13),
-                          ),
-                          backgroundColor: kTeal,
-                          shape: StadiumBorder(),
-                          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-                          visualDensity: VisualDensity.compact,
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: kTeal.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        book['category'] ?? 'Unknown',
+                        style: TextStyle(
+                          color: kTeal,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                    if (book['category'] != null && book['category'].toString().isNotEmpty)
-                      Chip(
-                        label: Text(
-                          book['category'],
-                          style: TextStyle(color: kTeal, fontWeight: FontWeight.bold, fontSize: 13),
-                        ),
-                        backgroundColor: kCard,
-                        shape: StadiumBorder(side: BorderSide(color: kTeal, width: 1.5)),
-                        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-                        visualDensity: VisualDensity.compact,
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      '${book['year'] ?? 'Unknown'}',
+                      style: TextStyle(
+                        color: kLight.withOpacity(0.6),
+                        fontSize: 12,
                       ),
-                  ],
-                ),
-                SizedBox(height: 8),
-                Wrap(
-                  spacing: 6,
-                  children: [
-                    if (book['source'] != null)
-                      Chip(
-                        label: Text(book['source'], style: TextStyle(fontSize: 12, color: kBg, fontWeight: FontWeight.bold)),
-                        backgroundColor: kTeal,
-                        shape: StadiumBorder(),
-                        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 0),
-                      ),
+                    ),
                   ],
                 ),
               ],
             ),
           ),
-          // Action buttons column
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -337,85 +297,80 @@ class _HomePageState extends State<HomePage> {
         backgroundColor: kTeal,
         shape: StadiumBorder(),
       ),
-      body: Container(
-        color: kBg,
-        child: SafeArea(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Material(
-                  elevation: 2,
-                  borderRadius: BorderRadius.circular(16),
-                  color: kCard,
-                  child: TextField(
-                    style: TextStyle(color: kLight, fontWeight: FontWeight.w500),
-                    decoration: InputDecoration(
-                      hintText: "Search by title, author, or category",
-                      hintStyle: TextStyle(color: kLight.withOpacity(0.7)),
-                      prefixIcon: Icon(Icons.search, color: kTeal),
-                      filled: true,
-                      fillColor: kCard,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+      body: Column(
+        children: [
+          Container(
+            padding: EdgeInsets.all(16),
+            child: TextField(
+              onChanged: (value) {
+                setState(() {
+                  searchQuery = value;
+                  applyFilter();
+                });
+              },
+              style: TextStyle(color: kLight),
+              decoration: InputDecoration(
+                hintText: 'Search books...',
+                hintStyle: TextStyle(color: kLight.withOpacity(0.5)),
+                prefixIcon: Icon(Icons.search, color: kTeal),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(25),
+                  borderSide: BorderSide(color: kTeal),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(25),
+                  borderSide: BorderSide(color: kTeal),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(25),
+                  borderSide: BorderSide(color: kTeal, width: 2),
+                ),
+                filled: true,
+                fillColor: kCard,
+              ),
+            ),
+          ),
+          Expanded(
+            child: filteredBooks.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.library_books, size: 80, color: kTeal.withOpacity(0.5)),
+                        SizedBox(height: 16),
+                        Text(
+                          searchQuery.isEmpty ? 'No books yet' : 'No books found',
+                          style: TextStyle(
+                            color: kLight.withOpacity(0.7),
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        if (searchQuery.isEmpty) ...[
+                          SizedBox(height: 8),
+                          Text(
+                            'Add your first book!',
+                            style: TextStyle(
+                              color: kLight.withOpacity(0.5),
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
-                    onChanged: (value) {
-                      searchQuery = value.toLowerCase();
-                      applyFilter();
+                  )
+                : ListView.builder(
+                    itemCount: filteredBooks.length,
+                    itemBuilder: (context, index) {
+                      return Card(
+                        margin: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        color: kCard,
+                        child: buildBookTile(filteredBooks[index]),
+                      );
                     },
                   ),
-                ),
-              ),
-              Expanded(
-                child: filteredBooks.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.menu_book, size: 60, color: kTeal.withOpacity(0.5)),
-                            SizedBox(height: 16),
-                            Text("No books found", style: TextStyle(fontSize: 20, color: kLight, fontWeight: FontWeight.bold)),
-                            if (books.isEmpty && searchQuery.isEmpty) ...[
-                              SizedBox(height: 16),
-                              ElevatedButton(
-                                onPressed: fetchBooks,
-                                child: Text("Retry Connection", style: TextStyle(color: kBg, fontWeight: FontWeight.bold)),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: kTeal,
-                                  shape: StadiumBorder(),
-                                  padding: EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: EdgeInsets.only(bottom: 80),
-                        itemCount: filteredBooks.length,
-                        itemBuilder: (context, index) {
-                          final book = filteredBooks[index];
-                          return AnimatedContainer(
-                            duration: Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                            child: Card(
-                              margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              elevation: 4,
-                              color: kCard,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                              child: buildBookTile(book),
-                            ),
-                          );
-                        },
-                      ),
-              ),
-            ],
           ),
-        ),
+        ],
       ),
     );
   }

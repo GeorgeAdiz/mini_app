@@ -46,11 +46,8 @@ class _AddBookPageState extends State<AddBookPage> {
     }
   }
 
-  // 📸 Pick image from gallery
   Future<void> pickImage() async {
-    final XFile? pickedFile =
-        await _picker.pickImage(source: ImageSource.gallery);
-
+    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
         _imageFile = File(pickedFile.path);
@@ -58,7 +55,6 @@ class _AddBookPageState extends State<AddBookPage> {
     }
   }
 
-  // 📤 Upload book with image
   Future<void> addBook() async {
     final String title = titleController.text.trim();
     final String author = authorController.text.trim();
@@ -78,11 +74,29 @@ class _AddBookPageState extends State<AddBookPage> {
       return;
     }
 
-    // Try multiple possible IP addresses
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: kCard,
+          content: Row(
+            children: [
+              CircularProgressIndicator(color: kTeal),
+              SizedBox(width: 20),
+              Text('Uploading book...', style: TextStyle(color: kLight)),
+            ],
+          ),
+        );
+      },
+    );
+
     List<String> possibleUrls = [
+      'http://192.168.194.4:3000/books',
       'http://192.168.193.252:3000/books',
-      'http://10.0.2.2:3000/books', // Android emulator localhost
+      'http://10.0.2.2:3000/books',
       'http://localhost:3000/books',
+      'http://127.0.0.1:3000/books',
     ];
     
     http.MultipartRequest? request;
@@ -90,27 +104,26 @@ class _AddBookPageState extends State<AddBookPage> {
     
     for (String urlString in possibleUrls) {
       try {
-        print('Trying to upload to: $urlString');
         var uri = Uri.parse(urlString);
-        var testRequest = http.MultipartRequest('POST', uri);
+        var testResponse = await http.get(uri).timeout(Duration(seconds: 5));
         
-        // Test the connection first
-        var testResponse = await http.get(uri).timeout(Duration(seconds: 3));
         if (testResponse.statusCode == 200 || testResponse.statusCode == 404) {
           workingUrl = urlString;
-          request = testRequest;
-          print('Successfully connected to: $workingUrl');
+          request = http.MultipartRequest('POST', uri);
           break;
         }
       } catch (e) {
-        print('Failed to connect to $urlString: $e');
         continue;
       }
     }
     
     if (request == null || workingUrl == null) {
+      Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not connect to server')),
+        SnackBar(
+          content: Text('Could not connect to server'),
+          duration: Duration(seconds: 3),
+        ),
       );
       return;
     }
@@ -128,23 +141,33 @@ class _AddBookPageState extends State<AddBookPage> {
 
     try {
       var response = await request.send();
+      final respStr = await response.stream.bytesToString();
+
+      Navigator.pop(context);
 
       if (response.statusCode == 201) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Book added successfully')),
+          SnackBar(
+            content: Text('Book added successfully'),
+            backgroundColor: Colors.green,
+          ),
         );
         Navigator.pop(context);
       } else {
-        final respStr = await response.stream.bytesToString();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Upload failed: ${response.statusCode}')),
+          SnackBar(
+            content: Text('Upload failed: ${response.statusCode}'),
+            backgroundColor: Colors.red,
+          ),
         );
-        print('Upload failed: $respStr');
       }
     } catch (e) {
-      print('Error uploading book: $e');
+      Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error uploading book')),
+        SnackBar(
+          content: Text('Error uploading book'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -161,40 +184,46 @@ class _AddBookPageState extends State<AddBookPage> {
     final String title = titleController.text.trim();
     final String author = authorController.text.trim();
     final String year = yearController.text.trim();
+    
     if (title.isEmpty || author.isEmpty || year.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('All fields are required')),
       );
       return;
     }
+    
     if (int.tryParse(year) == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Year must be a valid number')),
       );
       return;
     }
+    
     List<String> possibleUrls = [
+      'http://192.168.194.4:3000/books/${widget.book!['_id']}',
       'http://192.168.193.252:3000/books/${widget.book!['_id']}',
       'http://10.0.2.2:3000/books/${widget.book!['_id']}',
       'http://localhost:3000/books/${widget.book!['_id']}',
     ];
+    
     http.MultipartRequest? request;
     String? workingUrl;
+    
     for (String urlString in possibleUrls) {
       try {
         var uri = Uri.parse(urlString);
         var testRequest = http.MultipartRequest('PUT', uri);
-        // Always add all fields as strings
         testRequest.fields['title'] = title;
         testRequest.fields['author'] = author;
         testRequest.fields['year'] = year;
         testRequest.fields['category'] = selectedCategory;
+        
         if (_imageFile != null) {
           testRequest.files.add(
             await http.MultipartFile.fromPath('image', _imageFile!.path),
           );
         }
-        // Test connection with GET
+        
         var testResponse = await http.get(uri).timeout(Duration(seconds: 3));
         if (testResponse.statusCode == 200 || testResponse.statusCode == 404) {
           workingUrl = urlString;
@@ -205,31 +234,40 @@ class _AddBookPageState extends State<AddBookPage> {
         continue;
       }
     }
+    
     if (request == null || workingUrl == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Could not connect to server')),
       );
       return;
     }
+    
     try {
       var response = await request.send();
       final respStr = await response.stream.bytesToString();
-      print('Update response: $respStr');
+      
       if (response.statusCode == 200) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Book updated successfully')),
+          SnackBar(
+            content: Text('Book updated successfully'),
+            backgroundColor: Colors.green,
+          ),
         );
         Navigator.pop(context, true);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Update failed: ${response.statusCode}')),
+          SnackBar(
+            content: Text('Update failed: ${response.statusCode}'),
+            backgroundColor: Colors.red,
+          ),
         );
-        print('Update failed: $respStr');
       }
     } catch (e) {
-      print('Error updating book: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error updating book')),
+        SnackBar(
+          content: Text('Error updating book'),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
