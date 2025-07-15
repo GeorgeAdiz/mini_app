@@ -88,7 +88,7 @@ class _AddBookPageState extends State<AddBookPage> {
 
     // Try multiple possible IP addresses
     List<String> possibleUrls = [
-      'http://192.168.194.4:3000/books',
+      'http://192.168.194.10:3000/books',
       'http://10.0.2.2:3000/books', // Android emulator localhost
       'http://localhost:3000/books',
     ];
@@ -182,7 +182,7 @@ class _AddBookPageState extends State<AddBookPage> {
       return;
     }
     List<String> possibleUrls = [
-      'http://192.168.194.4:3000/books/${widget.book!['_id']}',
+      'http://192.168.194.10:3000/books/${widget.book!['_id']}',
       'http://10.0.2.2:3000/books/${widget.book!['_id']}',
       'http://localhost:3000/books/${widget.book!['_id']}',
     ];
@@ -289,70 +289,26 @@ class _AddBookPageState extends State<AddBookPage> {
                     SizedBox(height: 16),
                     Text("Categories", style: TextStyle(fontWeight: FontWeight.w600, color: kLight, fontSize: 16)),
                     SizedBox(height: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(color: kTeal, width: 1.5),
-                        borderRadius: BorderRadius.circular(12),
-                        color: kCard,
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: selectedCategories.isEmpty ? null : selectedCategories.first,
-                          isExpanded: true,
-                          dropdownColor: kCard,
-                          style: TextStyle(
-                            color: kLight,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 16,
-                          ),
-                          icon: Icon(Icons.arrow_drop_down, color: kTeal),
-                          hint: Text(
-                            selectedCategories.isEmpty 
-                              ? "Select categories" 
-                              : "${selectedCategories.length} selected",
-                            style: TextStyle(color: kLight.withOpacity(0.7)),
-                          ),
-                          items: [
-                            ...categories.map((String category) {
-                              return DropdownMenuItem<String>(
-                                value: category,
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      selectedCategories.contains(category) 
-                                        ? Icons.check_box 
-                                        : Icons.check_box_outline_blank,
-                                      color: kTeal,
-                                      size: 20,
-                                    ),
-                                    SizedBox(width: 12),
-                                    Expanded(
-                                      child: Text(
-                                        category,
-                                        style: TextStyle(
-                                          color: kLight,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }).toList(),
-                          ],
-                          onChanged: (String? newValue) {
-                            if (newValue != null) {
-                              setState(() {
-                                if (selectedCategories.contains(newValue)) {
-                                  selectedCategories.remove(newValue);
-                                } else {
-                                  selectedCategories.add(newValue);
-                                }
-                              });
-                            }
+                    Wrap(
+                      spacing: 8,
+                      children: categories.map((category) {
+                        final isSelected = selectedCategories.contains(category);
+                        return ChoiceChip(
+                          label: Text(category, style: TextStyle(color: isSelected ? kBg : kLight)),
+                          selected: isSelected,
+                          selectedColor: kTeal,
+                          backgroundColor: kCard,
+                          onSelected: (selected) {
+                            setState(() {
+                              if (selected) {
+                                selectedCategories.add(category);
+                              } else {
+                                selectedCategories.remove(category);
+                              }
+                            });
                           },
-                        ),
-                      ),
+                        );
+                      }).toList(),
                     ),
                     if (selectedCategories.isNotEmpty) ...[
                       SizedBox(height: 8),

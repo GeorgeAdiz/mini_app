@@ -34,7 +34,7 @@ class _HomePageState extends State<HomePage> {
   Future<void> testNetworkConnection() async {
     try {
       print('Testing network connection...');
-      var url = Uri.parse('http://192.168.194.4:3000/books');
+      var url = Uri.parse('http://192.168.194.10:3000/books');
       var response = await http.get(url).timeout(Duration(seconds: 5));
       print('Network test successful: ${response.statusCode}');
     } catch (e) {
@@ -47,7 +47,7 @@ class _HomePageState extends State<HomePage> {
       print('Fetching books from API...');
       // Use only the hardcoded list of possible URLs
       List<String> possibleUrls = [
-        'http://192.168.194.4:3000/books', // Your current IP
+        'http://192.168.194.10:3000/books', // Your current IP
         'http://10.0.2.2:3000/books', // Android emulator localhost
         'http://localhost:3000/books',
         'http://192.168.1.100:3000/books', // Common router IP
@@ -173,7 +173,7 @@ class _HomePageState extends State<HomePage> {
     try {
       // Try multiple possible IP addresses
       List<String> possibleUrls = [
-        'http://192.168.194.4:3000/books/$id',
+        'http://192.168.194.10:3000/books/$id',
         'http://10.0.2.2:3000/books/$id', // Android emulator localhost
         'http://localhost:3000/books/$id',
       ];
@@ -224,21 +224,74 @@ class _HomePageState extends State<HomePage> {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: book['imageUrl'] != null && book['imageUrl'].toString().isNotEmpty
-                ? Image.network(
-                    book['imageUrl'],
-                    width: 70,
-                    height: 120,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        Container(width: 70, height: 120, color: kTeal.withOpacity(0.1), child: Icon(Icons.broken_image, color: kTeal)),
-                  )
-                : Container(
-                    width: 70,
-                    height: 120,
-                    color: kTeal.withOpacity(0.1),
-                    child: Icon(Icons.book, color: kTeal, size: 30),
-                  ),
+            child: Container(
+              width: 70,
+              height: 120,
+              decoration: BoxDecoration(
+                border: Border.all(color: kTeal, width: 2),
+                borderRadius: BorderRadius.circular(12),
+                color: kTeal.withOpacity(0.1),
+              ),
+              child: book['imageUrl'] != null && book['imageUrl'].toString().isNotEmpty
+                  ? GestureDetector(
+                      onTap: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => Dialog(
+                            backgroundColor: Colors.transparent,
+                            child: Center(
+                              child: Container(
+                                width: 220,
+                                height: 360,
+                                decoration: BoxDecoration(
+                                  color: kTeal.withOpacity(0.08),
+                                  border: Border.all(color: kCard, width: 12), // thicker border for book cover
+                                  borderRadius: BorderRadius.circular(24),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.25),
+                                      blurRadius: 24,
+                                      offset: Offset(0, 12),
+                                    ),
+                                  ],
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(14),
+                                  child: Image.network(
+                                    book['imageUrl'],
+                                    width: 200,
+                                    height: 340,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) =>
+                                      Container(
+                                        width: 200,
+                                        height: 340,
+                                        color: kTeal.withOpacity(0.1),
+                                        child: Icon(Icons.broken_image, color: kTeal, size: 64),
+                                      ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.network(
+                          book['imageUrl'],
+                          width: 70,
+                          height: 120,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              Container(width: 70, height: 120, color: kTeal.withOpacity(0.1), child: Icon(Icons.broken_image, color: kTeal)),
+                        ),
+                      ),
+                    )
+                  : Center(
+                      child: Icon(Icons.book, color: kTeal, size: 30),
+                    ),
+            ),
           ),
           SizedBox(width: 16),
           Expanded(
